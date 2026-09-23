@@ -1,34 +1,144 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>三角洲行动 · 接单后台</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
-  <link rel="icon" href="/favicon.svg">
-  <style>
-    :root{
-      --bg:#0b0f1a; --card:#111827; --line:#1f2937; --fg:#e5e7eb;
-      --muted:#9ca3af; --acc:#22d3ee; --acc2:#a78bfa; --danger:#f87171; --ok:#4ade80;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100dvh}
-    .glass{background:rgba(17,24,39,.9);backdrop-filter:blur(12px);border:1px solid var(--line)}
-    .btn{@apply px-4 py-2 rounded-lg font-medium transition}
-    .btn-primary{@apply btn bg-cyan-500 hover:bg-cyan-400 text-black}
-    .btn-ghost{@apply btn bg-transparent hover:bg-white/10 border border-white/10}
-    .btn-danger{@apply btn bg-red-500/80 hover:bg-red-500 text-white}
-    .input{@apply w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-transparent}
-    .card{@apply glass rounded-2xl p-6}
-    .scrollbar-thin::-webkit-scrollbar{width:6px;height:6px}
-    .scrollbar-thin::-webkit-scrollbar-thumb{background:#374151;border-radius:3px}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-    .animate-in{animation:fadeIn .3s ease-out forwards}
-    .mono{font-family:'JetBrains Mono',monospace}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三角洲行动 · 接单后台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2322d3ee'/><stop offset='100%' stop-color='%23a78bfa'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white' font-weight='bold'>Δ</text></svg>">
+<style>
+/* ===== 完整军事风设计系统 (内联, 无外链) ===== */
+:root{--bg:#0b0f1a;--card:#111827;--line:#1f2937;--fg:#e5e7eb;--muted:#9ca3af;--acc:#22d3ee;--acc2:#a78bfa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;line-height:1.5}
+@font-face{font-family:'Inter';src:local('Inter'),url('https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:local('JetBrains Mono'),url('https://fonts.gstatic.com/s/jetbrainsmono/v14/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKk.woff2') format('woff2');font-display:swap}
+.mono{font-family:'JetBrains Mono',monospace}
+.glass{background:rgba(17,24,39,.92);backdrop-filter:blur(12px);border:1px solid var(--line)}
+.btn{padding:.5rem 1rem;border-radius:.5rem;font-weight:500;font-size:.875rem;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;cursor:pointer;border:1px solid transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--acc);color:#000}.btn-primary:hover{background:#06b6d4}
+.btn-ghost{background:transparent;color:var(--fg);border-color:rgba(255,255,255,.1)}.btn-ghost:hover{background:rgba(255,255,255,.05)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#ef4444}
+.btn-ok{background:var(--ok);color:#000}.btn-ok:hover{background:#22c55e}
+.input{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:.5rem;padding:.625rem 1rem;color:var(--fg);font-size:.875rem;outline:none;transition:border .15s,box-shadow .15s}
+.input::placeholder{color:var(--muted)}.input:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(34,211,238,.25)}
+.card{background:rgba(17,24,39,.92);border:1px solid var(--line);border-radius:1rem;padding:1.5rem}
+.flex{display:flex}.flex-1{flex:1 1 0%}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}
+.grid{display:grid}.grid-cols-2{grid-template-columns:repeat(2,1fr)}.grid-cols-3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:768px){.md\:grid-cols-2{grid-template-columns:1fr}.md\:grid-cols-3{grid-template-columns:1fr}.md\:flex{display:flex}.md\:hidden{display:none}.md\:block{display:block}}
+.hidden{display:none}.relative{position:relative}.absolute{position:absolute}.fixed{position:fixed}.inset-0{inset:0}.sticky{position:sticky}.top-0{top:0}.z-10{z-index:10}.z-50{z-index:50}
+.w-full{width:100%}.max-w-md{max-width:28rem}.max-w-lg{max-width:32rem}.max-w-xl{max-width:36rem}.min-h-screen{min-height:100vh}.min-h-\[90vh\]{min-height:90vh}
+.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.pt-4{padding-top:1rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.mt-8{margin-top:2rem}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.ml-2{margin-left:.5rem}.mr-2{margin-right:.5rem}
+.text-xs{font-size:.75rem}.text-sm{font-size:.875rem}.text-base{font-size:1rem}.text-lg{font-size:1.125rem}.text-xl{font-size:1.25rem}.text-2xl{font-size:1.5rem}.text-3xl{font-size:1.875rem}.text-4xl{font-size:2.25rem}.font-medium{font-weight:500}.font-bold{font-weight:700}
+.text-center{text-align:center}.text-left{text-align:left}.text-right{text-align:right}
+.text-fg{color:var(--fg)}.text-muted{color:var(--muted)}.text-cyan{color:var(--acc)}.text-green{color:var(--ok)}.text-red{color:var(--danger)}.text-yellow{color:var(--warn)}.text-purple{color:var(--acc2)}
+.bg-cyan-500\/20{background:rgba(34,211,238,.2)}.bg-blue-500\/20{background:rgba(59,130,246,.2)}.bg-purple-500\/20{background:rgba(168,85,247,.2)}.bg-green-500\/20{background:rgba(34,197,94,.2)}.bg-yellow-500\/20{background:rgba(251,191,36,.2)}.bg-red-500\/20{background:rgba(248,113,113,.2)}.bg-black\/50{background:rgba(0,0,0,.5)}.bg-black\/60{background:rgba(0,0,0,.6)}.bg-zinc-900\/50{background:rgba(24,24,27,.5)}.bg-zinc-950{background:#09090b}
+.border{border-width:1px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-zinc-800{border-color:#27272a}.border-white\/10{border-color:rgba(255,255,255,.1)}.border-cyan-500\/30{border-color:rgba(34,211,238,.3)}
+.rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}
+.overflow-auto{overflow:auto}.overflow-hidden{overflow:hidden}.whitespace-pre-wrap{white-space:pre-wrap}.select-all{user-select:all}.cursor-pointer{cursor:pointer}.transition{transition:all .15s}.hover\:border-cyan-500\/30:hover{border-color:rgba(34,211,238,.3)}
+.animate-in{animation:fadeIn .3s ease-out forwards}@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.scrollbar-thin::-webkit-scrollbar{width:6px;height:6px}.scrollbar-thin::-webkit-scrollbar-thumb{background:#374151;border-radius:3px}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
 </head>
-<body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
+<body>
+<div id="root"></div>
+
+<script type="module">
+/* ===== 核心常量 ===== */
+const ROLES={SUPER:'super',ADMIN:'admin',WORKER:'worker',SERVICE:'service'};
+const ROLE_LABEL={super:'最高权限',admin:'管理',worker:'打手',service:'客服'};
+const STORAGE_KEY='delta_orders_v2';
+
+/* ===== Crypto ===== */
+async function hashPwd(pwd){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function verifyPwd(pwd,hash){return (await hashPwd(pwd))===hash}
+function genCode(){const chars='ABCDEFGHJKMNPQRSTUVWXYZ23456789';return Array.from(crypto.getRandomValues(new Uint8Array(10))).map(b=>chars[b%chars.length]).join('')}
+
+/* ===== 状态管理 ===== */
+function load(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))}catch{return null}}
+function save(s){localStorage.setItem(STORAGE_KEY,JSON.stringify(s))}
+function initState(){const data=load();if(data)return data;const now=Date.now();const superAdmin={id:'u0',username:'admin',passwordHash:'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',role:ROLES.SUPER,createdAt:now};const state={users:[superAdmin],orders:[],currentUser:null};save(state);return state}
+const state=initState();const listeners=new Set();const emit=()=>listeners.forEach(fn=>fn(state));
+const Store={getState:()=>state,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn)},
+async login(username,password){const u=state.users.find(x=>x.username===username);if(!u||!(await verifyPwd(password,u.passwordHash)))return{ok:false,msg:'账号或密码错误'};state.currentUser={id:u.id,username:u.username,role:u.role};save(state);emit();return{ok:true}},
+logout(){state.currentUser=null;save(state);emit()},
+getUser(){return state.currentUser},
+async addUser(username,password,role){if(state.users.some(u=>u.username===username))return{ok:false,msg:'用户名已存在'};state.users.push({id:'u'+Date.now(),username,passwordHash:await hashPwd(password),role,createdAt:Date.now()});save(state);emit();return{ok:true}},
+async updatePassword(userId,newPwd){const u=state.users.find(x=>x.id===userId);if(!u)return{ok:false};u.passwordHash=await hashPwd(newPwd);save(state);emit();return{ok:true}},
+deleteUser(userId){if(userId==='u0')return{ok:false,msg:'不可删除超管'};state.users=state.users.filter(u=>u.id!==userId);save(state);emit();return{ok:true}},
+listUsers(){return[...state.users].sort((a,b)=>a.createdAt-b.createdAt)},
+dispatchOrder({requirement,customerPrice,workerPrice}){const order={id:'o'+Date.now(),requirement,customerPrice:Number(customerPrice),workerPrice:Number(workerPrice),status:'pending',workerId:null,proofImg:null,code:null,createdAt:Date.now(),finishedAt:null};state.orders.unshift(order);save(state);emit();return order},
+takeOrder(orderId){const o=state.orders.find(x=>x.id===orderId);if(!o||o.status!=='pending')return{ok:false};const me=state.currentUser;if(![ROLES.WORKER,ROLES.SERVICE,ROLES.ADMIN,ROLES.SUPER].includes(me.role))return{ok:false};o.status='doing';o.workerId=me.id;o.startedAt=Date.now();save(state);emit();return{ok:true}},
+submitProof(orderId,dataUrl){const o=state.orders.find(x=>x.id===orderId);if(!o||o.status!=='doing')return{ok:false};if(o.workerId!==state.currentUser.id)return{ok:false,msg:'非接单人'};o.proofImg=dataUrl;o.status='review';o.submittedAt=Date.now();save(state);emit();return{ok:true}},
+reviewOrder(orderId,pass){const o=state.orders.find(x=>x.id===orderId);if(!o||o.status!=='review')return{ok:false};if(pass){o.status='done';o.code=genCode();o.finishedAt=Date.now()}else{o.status='doing';o.proofImg=null}save(state);emit();return{ok:true,code:o.code}},
+listOrders(filter={}){let arr=[...state.orders].sort((a,b)=>b.createdAt-a.createdAt);if(filter.status)arr=arr.filter(o=>o.status===filter.status);if(filter.workerId)arr=arr.filter(o=>o.workerId===filter.workerId);return arr},
+getOrder(id){return state.orders.find(o=>o.id===id)}
+};
+const Perm={canDispatch:(r)=>[ROLES.SUPER,ROLES.ADMIN,ROLES.SERVICE].includes(r),canTake:(r)=>[ROLES.SUPER,ROLES.ADMIN,ROLES.SERVICE,ROLES.WORKER].includes(r),canReview:(r)=>[ROLES.SUPER,ROLES.ADMIN].includes(r),canManageUsers:(r)=>[ROLES.SUPER,ROLES.ADMIN].includes(r),canViewAll:(r)=>[ROLES.SUPER,ROLES.ADMIN].includes(r),label:(r)=>ROLE_LABEL[r]||r};
+
+/* ===== 工具函数 ===== */
+function formatTime(ts){return new Date(ts).toLocaleString('zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+function formatMoney(n){return '¥'+Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+
+/* ===== React 简易实现 (无需构建) ===== */
+const {useState,useEffect,useRef}=React;
+function h(type,props,...children){return{type,props:props||{},children:children.flat()}}
+function Fragment({children}){return children}
+function render(vnode,container){if(typeof vnode==='string'||typeof vnode==='number'){container.appendChild(document.createTextNode(vnode));return}if(Array.isArray(vnode)){vnode.forEach(v=>render(v,container));return}const el=document.createElement(vnode.type);Object.entries(vnode.props||{}).forEach(([k,v])=>{if(k.startsWith('on')){el.addEventListener(k.slice(2).toLowerCase(),v)}else if(k==='style'&&typeof v==='object'){Object.assign(el.style,v)}else if(k==='className'){el.className=v}else if(k==='dangerouslySetInnerHTML'){el.innerHTML=v.__html}else{el.setAttribute(k,v)}});vnode.children.forEach(c=>render(c,el));container.appendChild(el)}
+function reconcile(oldV, newV, parent, i=0){
+  const oldC=oldV&&oldV.children?oldV.children.flat():[];const newC=newV&&newV.children?newV.children.flat():[];
+  const max=Math.max(oldC.length,newC.length);
+  for(let j=0;j<max;j++){if(!oldC[j]){render(newC[j],parent)}else if(!newC[j]){parent.childNodes[j]?.remove()}else if(typeof oldC[j]!=='object'||typeof newC[j]!=='object'){if(oldC[j]!==newC[j])parent.childNodes[j].textContent=newC[j]}else if(oldC[j].type!==newC[j].type){parent.replaceChild(render(newC[j],document.createDocumentFragment()),parent.childNodes[j])}else{reconcile(oldC[j],newC[j],parent.childNodes[j])}}}
+let currentRoot=null;function mount(vnode,container){render(vnode,container);currentRoot=vnode}
+function update(vnode){reconcile(currentRoot,vnode,currentRoot._container||document.getElementById('root'));currentRoot=vnode}
+
+/* ===== 组件 ===== */
+function Modal({open,onClose,title,children,footer}){if(!open)return null;return h('div',{className:'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in',onClick:onClose},h('div',{className:'card w-full max-w-lg max-h-[90vh] overflow-auto animate-in',onClick:e=>e.stopPropagation()},h('div',{className:'flex items-center justify-between mb-4'},h('h2',{className:'text-xl font-bold'},title),h('button',{className:'btn-ghost p-1',onClick:onClose},'✕')),children,footer&&h('div',{className:'mt-6 flex justify-end gap-3'},footer)))}
+
+function ProofUpload({orderId,onSuccess}){const[file,setFile]=useState(null);const[preview,setPreview]=useState(null);const[loading,setLoading]=useState(false);async function submit(){if(!file)return alert('请选择图片');setLoading(true);const reader=new FileReader();reader.onload=async e=>{await Store.submitProof(orderId,e.target.result);setLoading(false);onSuccess()};reader.readAsDataURL(file)}return h('div',{className:'space-y-4'},h('input',{type:'file',accept:'image/*',className:'input',onChange:e=>{const f=e.target.files[0];if(f){setFile(f);setPreview(URL.createObjectURL(f))}}),preview&&h('img',{src:preview,className:'rounded-lg max-h-64 mx-auto',alt:'预览'}),h('div',{className:'flex justify-end gap-3'},h('button',{className:'btn-ghost',onClick:onSuccess,disabled:loading},'取消'),h('button',{className:'btn-primary',onClick:submit,disabled:loading},loading?'上传中…':'确认上传')))}
+
+function CodeDisplay({code}){return h('div',{className:'space-y-4 text-center'},h('div',{className:'mono text-3xl font-bold tracking-widest bg-black/50 px-4 py-6 rounded-lg border border-cyan-500/30 text-cyan-400 select-all'},code),h('p',{className:'text-sm text-zinc-500'},'复制后通过其他聊天软件发给付款方'),h('button',{className:'btn-primary w-full',onClick:()=>{navigator.clipboard.writeText(code);alert('已复制')},'复制兑换码'))}
+
+function OrderCard({order}){const user=Store.getUser();const[showProof,setShowProof]=useState(false);const[showCode,setShowCode]=useState(false);const isWorker=order.workerId===user?.id;const canTake=Perm.canTake(user?.role)&&order.status==='pending';const canReview=Perm.canReview(user?.role)&&order.status==='review';const canSeeCode=Perm.canViewAll(user?.role)&&order.code;async function handleTake(){await Store.takeOrder(order.id)}async function handleReview(pass){const res=await Store.reviewOrder(order.id,pass);if(res.code)setShowCode(true)}const statusColor=order.status==='pending'?'bg-yellow-500/20 text-yellow-400':order.status==='doing'?'bg-blue-500/20 text-blue-400':order.status==='review'?'bg-purple-500/20 text-purple-400':'bg-green-500/20 text-green-400';return h('article',{className:'card relative overflow-hidden hover:border-cyan-500/30 transition'},h('div',{className:'flex items-start justify-between gap-4'},h('div',{className:'flex-1'},h('div',{className:'flex flex-wrap items-center gap-2 mb-3'},h('span',{className:`px-2 py-0.5 rounded text-xs font-medium ${statusColor}`},order.status),h('span',{className:'text-xs text-zinc-500 mono'},'#'+order.id.slice(-6)),h('span',{className:'text-xs text-zinc-500'},formatTime(order.createdAt))),h('p',{className:'text-zinc-300 mb-4 whitespace-pre-wrap'},order.requirement),h('div',{className:'grid grid-cols-2 gap-4 text-sm'},h('div',null,h('span',{className:'text-zinc-500'},'客户付款：'),h('span',{className:'font-mono text-green-400'},formatMoney(order.customerPrice))),h('div',null,h('span',{className:'text-zinc-500'},'打手到手：'),h('span',{className:'font-mono text-cyan-400'},formatMoney(order.workerPrice))))),h('div',{className:'flex flex-col gap-2 shrink-0'},canTake&&h('button',{className:'btn-primary w-full',onClick:handleTake},'接单'),isWorker&&order.status==='doing'&&h('button',{className:'btn w-full',onClick:()=>setShowProof(true)},'上传截图'),isWorker&&order.status==='review'&&h('span',{className:'text-center text-sm text-yellow-400 py-2'},'待审核'),canReview&&h('div',{className:'flex gap-2'},h('button',{className:'btn ok flex-1',onClick:()=>handleReview(true)},'通过'),h('button',{className:'btn-danger flex-1',onClick:()=>handleReview(false)},'驳回')),canSeeCode&&h('button',{className:'btn-ghost w-full text-xs',onClick:()=>setShowCode(true)},'查看兑换码'))),Modal({open:showProof,onClose:()=>setShowProof(false),title:'上传完成截图',children:h(ProofUpload,{orderId:order.id,onSuccess:()=>setShowProof(false)})}),Modal({open:showCode,onClose:()=>setShowCode(false),title:'兑换码',children:h(CodeDisplay,{code:order.code})}))}
+
+function OrderForm({open,onClose}){const[req,setReq]=useState('');const[cPrice,setCPrice]=useState('');const[wPrice,setWPrice]=useState('');const[loading,setLoading]=useState(false);async function submit(e){e.preventDefault();if(!req||!cPrice||!wPrice)return alert('请填完整');setLoading(true);Store.dispatchOrder({requirement:req,customerPrice:cPrice,workerPrice:wPrice});setLoading(false);onClose()}if(!open)return null;return h(Modal,{open:true,onClose,title:'新建订单',children:h('form',{onSubmit:submit,className:'space-y-4'},h('div',null,h('label',{className:'block text-sm mb-1'},'订单要求'),h('textarea',{value:req,onChange:e=>setReq(e.target.value),rows:4,className:'input',placeholder:'详细描述任务要求…',required})),h('div',{className:'grid grid-cols-2 gap-4'},h('div',null,h('label',{className:'block text-sm mb-1'},'客户付款金额'),h('input',{type:'number',step:'0.01',value:cPrice,onChange:e=>setCPrice(e.target.value),className:'input',required})),h('div',null,h('label',{className:'block text-sm mb-1'},'打手到手金额'),h('input',{type:'number',step:'0.01',value:wPrice,onChange:e=>setWPrice(e.target.value),className:'input',required}))),h('div',{className:'flex justify-end gap-3 pt-2'},h('button',{type:'button',className:'btn-ghost',onClick:onClose},'取消'),h('button',{type:'submit',className:'btn-primary',disabled:loading},loading?'提交中…':'确定派单')))})}
+
+function UserForm({open,onClose,initial}){const[username,setUsername]=useState(initial?.username||'');const[password,setPassword]=useState('');const[role,setRole]=useState(initial?.role||ROLES.WORKER);const[loading,setLoading]=useState(false);async function submit(e){e.preventDefault();if(!username||(!initial&&!password))return alert('必填项不能为空');setLoading(true);if(initial){if(password)await Store.updatePassword(initial.id,password)}else{await Store.addUser(username,password,role)}setLoading(false);onClose()}if(!open)return null;return h(Modal,{open:true,onClose,title:initial?'编辑用户':'添加用户',children:h('form',{onSubmit:submit,className:'space-y-4'},h('div',null,h('label',{className:'block text-sm mb-1'},'用户名'),h('input',{value:username,onChange:e=>setUsername(e.target.value),className:'input',disabled:!!initial,placeholder:'英文数字',required})),h('div',null,h('label',{className:'block text-sm mb-1'},initial?'新密码 (留空不改)':'密码'),h('input',{type:'password',value:password,onChange:e=>setPassword(e.target.value),className:'input',placeholder:'至少 6 位',required:!initial})),h('div',null,h('label',{className:'block text-sm mb-1'},'角色'),h('select',{value:role,onChange:e=>setRole(e.target.value),className:'input'},h('option',{value:ROLES.SUPER},'最高权限'),h('option',{value:ROLES.ADMIN},'管理'),h('option',{value:ROLES.SERVICE},'客服'),h('option',{value:ROLES.WORKER},'打手'))),h('div',{className:'flex justify-end gap-3 pt-2'},h('button',{type:'button',className:'btn-ghost',onClick:onClose},'取消'),h('button',{type:'submit',className:'btn-primary',disabled:loading},loading?'保存中…':'确定')))})}
+
+function Sidebar({nav,collapsed}){return h('aside',{className:`glass transition-all duration-300 flex flex-col ${collapsed?'w-16':'w-64'}`},h('div',{className:'flex items-center justify-between p-4 border-b border-zinc-800'},!collapsed&&h('span',{className:'font-bold text-lg text-cyan-400'},'三角洲行动'),h('span',{className:'text-xs text-cyan-400 mono'},'DELTA')),h('nav',{className:'flex-1 p-3 overflow-auto scrollbar-thin'},h('ul',{className:'space-y-1'},nav.map(item=>h('li',{key:item.href},h('a',{href:'#'+item.href,className:`flex items-center gap-3 px-3 py-2.5 rounded-lg transition hover:bg-cyan-500/10 ${collapsed?'justify-center':''}`},h('span',{className:'text-xl'},item.icon),!collapsed&&h('span',{className:'font-medium'},item.label)))))),h('div',{className:'p-3 border-t border-zinc-800'},h('a',{href:'#/logout',className:'flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition'},h('span',null,'🚪'),!collapsed&&h('span',null,'退出登录'))))}
+
+function TopBar({user,collapsed,onToggle}){return h('header',{className:'glass border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10'},h('button',{onClick:onToggle,className:'btn-ghost md:hidden','aria-label':'Toggle sidebar'},'☰'),h('div',{className:'flex-1 text-center md:text-left'},h('h1',{className:'text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent'},collapsed?'Δ':'三角洲行动 · 接单后台')),h('div',{className:'flex items-center gap-4'},h('span',{className:'hidden sm:block text-xs text-zinc-400 mono'},user?.username),h('span',{className:'px-2 py-0.5 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400'},user?.role)))}
+
+function Layout({children}){const[collapsed,setCollapsed]=useState(false);const user=Store.getUser();const nav=[{href:'/',label:'接单大厅',icon:'📋'},{href:'/dispatch',label:'派单',icon:'📤',show:Perm.canDispatch(user?.role)},{href:'/review',label:'审核',icon:'✅',show:Perm.canReview(user?.role)},{href:'/profile',label:'用户中心',icon:'👤'},{href:'/admin',label:'用户管理',icon:'👥',show:Perm.canManageUsers(user?.role)}].filter(i=>i.show!==false);return h('div',{className:'flex min-h-screen bg-zinc-950'},h(Sidebar,{nav,collapsed}),h('div',{className:'flex-1 flex flex-col min-w-0'},h(TopBar,{user,collapsed,onToggle:()=>setCollapsed(!collapsed)}),h('main',{className:'flex-1 p-6 md:p-8 overflow-auto'},children)))}
+
+/* ===== 页面 ===== */
+function LoginPage(){const[username,setUsername]=useState('');const[password,setPassword]=useState('');const[err,setErr]=useState('');const[loading,setLoading]=useState(false);async function submit(e){e.preventDefault();setErr('');setLoading(true);const res=await Store.login(username,password);setLoading(false);if(res.ok)location.hash='#/';else setErr(res.msg)}return h('div',{className:'flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black'},h('div',{className:'card w-full max-w-md animate-in'},h('div',{className:'text-center mb-8'},h('div',{className:'text-4xl mb-2'},'🎯'),h('h1',{className:'text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent'},'三角洲行动'),h('p',{className:'text-zinc-500 mt-1'},'接单后台管理系统')),h('form',{onSubmit:submit,className:'space-y-4'},err&&h('p',{className:'text-red-400 text-sm text-center'},err),h('div',null,h('label',{className:'block text-sm mb-1'},'用户名'),h('input',{value:username,onChange:e=>setUsername(e.target.value),className:'input',autoComplete:'username',required})),h('div',null,h('label',{className:'block text-sm mb-1'},'密码'),h('input',{type:'password',value:password,onChange:e=>setPassword(e.target.value),className:'input',autoComplete:'current-password',required})),h('button',{type:'submit',className:'btn-primary w-full',disabled:loading},loading?'登录中…':'登录')),h('p',{className:'mt-6 text-center text-xs text-zinc-500'},'默认账号：admin / admin')))}
+
+function HomePage(){const[orders,setOrders]=useState([]);const[showForm,setShowForm]=useState(false);const user=Store.getUser();useEffect(()=>{const unsub=Store.subscribe(s=>setOrders(Store.listOrders()));return unsub},[]);return h('div',{className:'space-y-6'},h('div',{className:'flex items-center justify-between'},h('h1',{className:'text-2xl font-bold'},'接单大厅'),Perm.canDispatch(user?.role)&&h('button',{className:'btn-primary',onClick:()=>setShowForm(true)},'+ 派单')),h('div',{className:'grid gap-4 md:grid-cols-2 lg:grid-cols-3'},orders.length===0?h('div',{className:'col-span-full card text-center py-12 text-zinc-500'},'暂无订单'):orders.map(o=>h(OrderCard,{key:o.id,order:o}))),h(OrderForm,{open:showForm,onClose:()=>setShowForm(false)}))}
+
+function DispatchPage(){const[show,setShow]=useState(false);return h('div',{className:'space-y-6'},h('h1',{className:'text-2xl font-bold'},'派单'),h('button',{className:'btn-primary',onClick:()=>setShow(true)},'+ 新建订单'),h(OrderForm,{open:show,onClose:()=>setShow(false)}))}
+
+function ReviewPage(){const[orders,setOrders]=useState([]);useEffect(()=>{const unsub=Store.subscribe(s=>setOrders(Store.listOrders({status:'review'})));return unsub},[]);return h('div',{className:'space-y-6'},h('h1',{className:'text-2xl font-bold'},'待审核订单'),h('div',{className:'grid gap-4 md:grid-cols-2 lg:grid-cols-3'},orders.length===0?h('div',{className:'col-span-full card text-center py-12 text-zinc-500'},'暂无待审核订单'):orders.map(o=>h(OrderCard,{key:o.id,order:o}))))}
+
+function ProfilePage(){const user=Store.getUser();const[oldPwd,setOldPwd]=useState('');const[newPwd,setNewPwd]=useState('');const[msg,setMsg]=useState('');async function changePwd(e){e.preventDefault();setMsg('');if(!oldPwd||!newPwd)return setMsg('请填完整');const ok=await Store.updatePassword(user.id,newPwd);if(ok){setMsg('修改成功');setOldPwd('');setNewPwd('')}else setMsg('修改失败')}return h('div',{className:'max-w-md space-y-6'},h('h1',{className:'text-2xl font-bold'},'用户中心'),h('div',{className:'card space-y-4'},h('div',{className:'flex items-center gap-4'},h('div',{className:'w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-2xl font-bold'},user?.username[0].toUpperCase()),h('div',null,h('p',{className:'font-bold text-lg'},user?.username),h('span',{className:'px-2 py-0.5 rounded text-xs bg-cyan-500/20 text-cyan-400'},Store.getState().users.find(u=>u.id===user.id)?.role))),h('form',{onSubmit:changePwd,className:'space-y-4 border-t border-zinc-800 pt-4'},h('h3',{className:'font-medium'},'修改密码'),h('div',null,h('label',{className:'block text-sm mb-1'},'当前密码'),h('input',{type:'password',value:oldPwd,onChange:e=>setOldPwd(e.target.value),className:'input',required})),h('div',null,h('label',{className:'block text-sm mb-1'},'新密码'),h('input',{type:'password',value:newPwd,onChange:e=>setNewPwd(e.target.value),className:'input',minLength:6,required})),msg&&h('p',{className:'text-sm text-cyan-400'},msg),h('button',{type:'submit',className:'btn-primary w-full'},'保存修改'))))}
+
+function AdminPage(){const[users,setUsers]=useState([]);const[showForm,setShowForm]=useState(false);const[editing,setEditing]=useState(null);useEffect(()=>{const unsub=Store.subscribe(s=>setUsers(Store.listUsers()));return unsub},[]);async function del(id){if(confirm('确定删除该用户？')){await Store.deleteUser(id)}}return h('div',{className:'space-y-6'},h('div',{className:'flex items-center justify-between'},h('h1',{className:'text-2xl font-bold'},'用户管理'),h('button',{className:'btn-primary',onClick:()=>{setEditing(null);setShowForm(true)}},'+ 添加用户')),h('div',{className:'card overflow-hidden'},h('table',{className:'w-full text-sm'},h('thead',{className:'bg-zinc-900/50 border-b border-zinc-800'},h('tr',{className:'text-left text-zinc-400'},h('th',{className:'p-3'},'用户名'),h('th',{className:'p-3'},'角色'),h('th',{className:'p-3'},'创建时间'),h('th',{className:'p-3'},'操作'))),h('tbody',{className:'divide-y divide-zinc-800'},users.map(u=>h('tr',{key:u.id,className:'hover:bg-zinc-900/50'},h('td',{className:'p-3 font-mono'},u.username),h('td',{className:'p-3'},h('span',{className:'px-2 py-0.5 rounded text-xs bg-cyan-500/20 text-cyan-400'},ROLE_LABEL[u.role]||u.role)),h('td',{className:'p-3 text-zinc-500 mono'},new Date(u.createdAt).toLocaleString()),h('td',{className:'p-3'},h('div',{className:'flex items-center gap-2'},u.id!=='u0'?[h('button',{className:'btn-ghost text-xs px-2 py-1',onClick:()=>{setEditing(u);setShowForm(true)}},h('span',null,'编辑')),h('button',{className:'btn-danger text-xs px-2 py-1',onClick:()=>del(u.id)},h('span',null,'删除'))]:h('span',{className:'text-xs text-zinc-500'},'超管'))))))),h(UserForm,{open:showForm,onClose:()=>{setShowForm(false);setEditing(null)},initial:editing}))}
+
+/* ===== 路由 ===== */
+const routes=[{path:'/',comp:HomePage,auth:true},{path:'/dispatch',comp:DispatchPage,auth:true,perm:Perm.canDispatch},{path:'/review',comp:ReviewPage,auth:true,perm:Perm.canReview},{path:'/profile',comp:ProfilePage,auth:true},{path:'/admin',comp:AdminPage,auth:true,perm:Perm.canManageUsers},{path:'/login',comp:LoginPage,guest:true}];
+function Router(){const[page,setPage]=useState(null);const[user,setUser]=useState(Store.getUser());useEffect(()=>{const unsub=Store.subscribe(s=>setUser(s.currentUser));window.addEventListener('hashchange',sync);sync();return()=>{unsub();window.removeEventListener('hashchange',sync)}},[]);async function sync(){const hash=location.hash.slice(1)||'/';const route=routes.find(r=>r.path===hash)||routes[0];if(route.auth&&!user)return location.hash='#/login';if(route.perm&&!route.perm(user?.role))return location.hash='#/';if(route.guest&&user)return location.hash='#/';setPage(h(route.comp))}return page||h('div',{className:'flex h-screen items-center justify-center text-zinc-500'},'Loading…')}
+
+/* ===== App ===== */
+function App(){const user=Store.getUser();if(user)return h(Layout,null,h(Router));return h(Router)}
+
+/* ===== 挂载 ===== */
+mount(h(App),document.getElementById('root'));
+
+// 处理退出登录
+window.addEventListener('hashchange',()=>{if(location.hash==='#/logout'){Store.logout();location.hash='#/login'}})
+</script>
+<!-- React 18 UMD (esm.sh) -->
+<script type="importmap">{"imports":{"react":"https://esm.sh/react@18.2.0?bundle","react-dom":"https://esm.sh/react-dom@18.2.0?bundle"}}</script>
+<script type="module">import React from 'react';import {createRoot} from 'react-dom/client';window.React=React;window.createRoot=createRoot;</script>
+</body>
 </html>
