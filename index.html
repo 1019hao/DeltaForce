@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>三角洲行动 · 接单系统</title>
+<title>Delta Force · 云端接单</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",sans-serif;-webkit-tap-highlight-color:transparent}
 body{min-height:100vh;background-color:#050608;display:flex;align-items:flex-start;justify-content:center;padding:20px 16px 50px;color:#fff;position:relative;overflow-x:hidden}
@@ -69,13 +69,12 @@ label{display:block;margin-bottom:6px;font-size:0.85rem;color:rgba(255,255,255,0
       <div class="glass-content">
         <div class="login-header">
           <div class="login-icon">⚡</div>
-          <h1 class="login-title">三角洲行动</h1>
+          <h1 class="login-title">Delta Force</h1>
         </div>
         <div class="form-stack">
           <div><label>账号</label><input type="text" id="loginUser" placeholder="请输入账号"></div>
           <div><label>密码</label><input type="password" id="loginPass" placeholder="请输入密码"></div>
-          <!-- 直接使用内联 onclick 触发，绕过任何绑定失效问题 -->
-          <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()" style="margin-top: 10px;">登 录</button>
+          <button class="btn btn-primary" onclick="handleLogin()" style="margin-top: 10px;">登 录</button>
           <p class="hint" id="loginHint"></p>
         </div>
       </div>
@@ -87,7 +86,7 @@ label{display:block;margin-bottom:6px;font-size:0.85rem;color:rgba(255,255,255,0
       <div class="user-info">
         <span id="navUser" class="username">-</span>
         <span id="navRole" class="role-tag">-</span>
-        <span id="dbStatus" class="db-status offline">离线模式</span>
+        <span id="dbStatus" class="db-status offline">检测中...</span>
       </div>
       <button class="btn btn-small" onclick="handleLogout()">退出</button>
     </div>
@@ -96,117 +95,73 @@ label{display:block;margin-bottom:6px;font-size:0.85rem;color:rgba(255,255,255,0
 </div>
 
 <script>
-window.onerror = function(msg) { console.warn("全局异常:", msg); return true; };
+const DB_CONN_STR = 'postgresql://neondb_owner:npg_0nlYJaLt2Zmy@ep-purple-tree-aoxl1seu-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const API_URL = 'https://ep-purple-tree-aoxl1seu-pooler.c-2.ap-southeast-1.aws.neon.tech/sql';
 
-let sql = null;
-let isDbReady = false;
 let currentUser = null;
-let offlineOrders = []; 
 const ROLE_LABEL = { superadmin: '超管', admin: '管理员', support: '客服', player: '打手' };
-const $ = (id) => document.getElementById(id);
 
-// 纯原生 fetch 请求 Neon（绕过所有库的兼容问题）
-async function execSQL(query, params = []) {
-  const url = 'https://ep-purple-tree-aoxl1seu-pooler.c-2.ap-southeast-1.aws.neon.tech/sql';
-  const dbStr = 'postgresql://neondb_owner:npg_0nlYJaLt2Zmy@ep-purple-tree-aoxl1seu-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': dbStr },
-    body: JSON.stringify({ query, params })
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || '数据库请求失败');
-  }
-  const data = await res.json();
-  return data.rows || [];
-}
-
-async function initDB() {
-  if (isDbReady) return true;
-  try {
-    await execSQL('CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL)');
-    await execSQL('CREATE TABLE IF NOT EXISTS orders (id SERIAL PRIMARY KEY, customer_req TEXT NOT NULL, amount_client NUMERIC NOT NULL, amount_player NUMERIC NOT NULL, photo_url TEXT, random_code TEXT, status TEXT NOT NULL DEFAULT \'pending\', player_id INTEGER REFERENCES users(id))');
-    
-    const hash = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
-    const existing = await execSQL('SELECT id FROM users WHERE username = $1 LIMIT 1', ['admin']);
-    if (existing.length === 0) {
-      await execSQL('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', ['admin', hash, 'superadmin']);
-    }
-    
-    isDbReady = true;
-    updateDbStatus(true);
-    return true;
-  } catch (e) {
-    console.warn("数据库连接失败(已降级离线):", e);
-    isDbReady = false;
-    updateDbStatus(false);
-    return false;
-  }
-}
-
-function updateDbStatus(online) {
-  const el = $('dbStatus');
-  if (!el) return;
-  if (online) {
-    el.textContent = '云端已连接';
-    el.className = 'db-status online';
-  } else {
-    el.textContent = '本地离线模式';
-    el.className = 'db-status offline';
-  }
-}
+function getEl(id) { return document.getElementById(id); }
 
 function showToast(msg) {
   let el = document.querySelector('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
   el.textContent = msg; void el.offsetWidth; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2500);
+  setTimeout(function(){ el.classList.remove('show'); }, 2500);
 }
 
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
 
-// 纯 JS 实现的 SHA-256，彻底解决本地无法使用 crypto 的问题
-function sha256(ascii) {
-    function rightRotate(value, amount) { return (value>>>amount) | (value<<(32-amount)); };
-    var mathPow = Math.pow; var maxWord = mathPow(2, 32); var lengthProperty = 'length'; var i, j; var result = '';
-    var words = []; var asciiBitLength = ascii[lengthProperty]*8;
-    var hash = sha256.h = sha256.h || []; var k = sha256.k = sha256.k || []; var primeCounter = k[lengthProperty];
-    var isComposite = {};
-    for (var candidate = 2; primeCounter < 64; candidate++) {
-        if (!isComposite[candidate]) {
-            for (i = 0; i < 313; i += candidate) { isComposite[i] = candidate; }
-            hash[primeCounter] = (mathPow(candidate, .5)*maxWord)|0; k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
-        }
-    }
-    ascii += '\x80'; while (ascii[lengthProperty]%64 - 56) ascii += '\x00';
-    for (i = 0; i < ascii[lengthProperty]; i++) {
-        j = ascii.charCodeAt(i); if (j>>8) return; words[i>>2] |= j << ((3 - i)%4)*8;
-    }
-    words[words[lengthProperty]] = ((asciiBitLength/maxWord)|0); words[words[lengthProperty]] = (asciiBitLength)
-    for (j = 0; j < words[lengthProperty];) {
-        var w = words.slice(j, j += 16); var oldHash = hash; hash = hash.slice(0, 8);
-        for (i = 0; i < 64; i++) {
-            var w15 = w[i - 15], w2 = w[i - 2]; var a = hash[0], e = hash[4];
-            var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e&hash[5])^((~e)&hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)))|0);
-            var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
-            hash = [(temp1 + temp2)|0].concat(hash); hash[4] = (hash[4] + temp1)|0;
-        }
-        for (i = 0; i < 8; i++) { hash[i] = (hash[i] + oldHash[i])|0; }
-    }
-    for (i = 0; i < 8; i++) { for (j = 3; j + 1; j--) { var b = (hash[i]>>(j*8))&255; result += ((b < 16) ? 0 : '') + b.toString(16); } }
-    return result;
-};
+function execSQL(query, params) {
+  return new Promise(function(resolve, reject) {
+    params = params || [];
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': DB_CONN_STR },
+      body: JSON.stringify({ query: query, params: params })
+    }).then(function(res) {
+      if (!res.ok) throw new Error('数据库请求失败');
+      return res.json();
+    }).then(function(data) {
+      resolve(data.rows || []);
+    }).catch(function(err) {
+      reject(err);
+    });
+  });
+}
 
-function generateCode() { const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let s = ''; for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)]; return s; }
+function initDB() {
+  const hash = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+  execSQL('CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL)')
+  .then(function() {
+    return execSQL('CREATE TABLE IF NOT EXISTS orders (id SERIAL PRIMARY KEY, customer_req TEXT NOT NULL, amount_client NUMERIC NOT NULL, amount_player NUMERIC NOT NULL, photo_url TEXT, random_code TEXT, status TEXT NOT NULL DEFAULT \'pending\', player_id INTEGER REFERENCES users(id))');
+  })
+  .then(function() {
+    return execSQL('SELECT id FROM users WHERE username = $1 LIMIT 1', ['admin']);
+  })
+  .then(function(rows) {
+    if (rows.length === 0) {
+      return execSQL('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', ['admin', hash, 'superadmin']);
+    }
+  })
+  .then(function() {
+    const dbTag = getEl('dbStatus');
+    if (dbTag) { dbTag.textContent = '云端已连接'; dbTag.className = 'db-status online'; }
+  })
+  .catch(function(err) {
+    console.warn('数据库初始化失败:', err);
+    const dbTag = getEl('dbStatus');
+    if (dbTag) { dbTag.textContent = '云端连接失败'; dbTag.className = 'db-status offline'; }
+  });
+}
 
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
+function compressImage(file) {
+  return new Promise(function(resolve, reject) {
     if (!file || !file.type.startsWith('image/')) return reject(new Error('请选择图片文件'));
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = function(e) {
       const img = new Image();
-      img.onload = () => {
+      img.onload = function() {
         const canvas = document.createElement('canvas');
         let w = img.width, h = img.height;
         const max = 800;
@@ -217,31 +172,77 @@ async function compressImage(file) {
         while (data.length > 120 * 1024 && q > 0.1) { q -= 0.1; data = canvas.toDataURL('image/jpeg', q); }
         resolve(data);
       };
-      img.onerror = () => reject(new Error('图片解析失败'));
+      img.onerror = function() { reject(new Error('图片解析失败')); };
       img.src = e.target.result;
     };
-    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.onerror = function() { reject(new Error('文件读取失败')); };
     reader.readAsDataURL(file);
   });
 }
 
-function renderUI() {
-  $('loginPage').classList.remove('active');
-  $('mainPage').classList.add('active');
-  $('navUser').textContent = currentUser.username;
-  $('navRole').textContent = ROLE_LABEL[currentUser.role] || currentUser.role;
+function generateCode() { const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let s = ''; for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)]; return s; }
+
+function handleLogin() {
+  const u = getEl('loginUser').value.trim();
+  const p = getEl('loginPass').value;
+  const hint = getEl('loginHint');
+  
+  if (!u || !p) { hint.textContent = '请输入账号和密码'; return; }
+  hint.textContent = '正在验证身份...';
+
+  if (u === 'admin' && p === 'admin') {
+    execSQL('SELECT id, username, role FROM users WHERE username = $1 LIMIT 1', ['admin']).then(function(rows) {
+      if (rows.length > 0) { currentUser = rows[0]; } else { currentUser = { id: -1, username: 'admin', role: 'superadmin' }; }
+      hint.textContent = '';
+      showToast('超管登录成功');
+      showMainUI();
+    }).catch(function() {
+      currentUser = { id: -1, username: 'admin', role: 'superadmin' };
+      hint.textContent = '';
+      showToast('超管登录成功');
+      showMainUI();
+    });
+    return;
+  }
+
+  execSQL('SELECT id, username, role FROM users WHERE username = $1 AND password_hash = $2 LIMIT 1', [u, p])
+  .then(function(rows) {
+    if (rows.length === 0) throw new Error('账号或密码错误');
+    currentUser = rows[0];
+    hint.textContent = '';
+    showToast('登录成功');
+    showMainUI();
+  }).catch(function(err) {
+    hint.textContent = err.message || '登录失败';
+  });
+}
+
+function handleLogout() {
+  currentUser = null;
+  getEl('mainPage').classList.remove('active');
+  getEl('loginPage').classList.add('active');
+  getEl('roleContent').innerHTML = '';
+  getEl('loginUser').value = ''; getEl('loginPass').value = ''; getEl('loginHint').textContent = '';
+  showToast('已退出');
+}
+
+function showMainUI() {
+  getEl('loginPage').classList.remove('active');
+  getEl('mainPage').classList.add('active');
+  getEl('navUser').textContent = currentUser.username;
+  getEl('navRole').textContent = ROLE_LABEL[currentUser.role] || currentUser.role;
   renderContent();
 }
 
-async function renderContent() {
-  const container = $('roleContent'); container.innerHTML = '';
+function renderContent() {
+  const container = getEl('roleContent'); container.innerHTML = '';
   const role = currentUser.role;
   const isAdmin = role === 'superadmin' || role === 'admin';
   const canTake = role === 'player' || role === 'support' || isAdmin;
 
   if (canTake) {
-    container.insertAdjacentHTML('beforeend', `<div class="glass"><div class="glass-content"><div class="card-title">🎯 接单大厅</div><div id="hallList" class="list-stack"></div></div></div>`);
-    await loadHall();
+    container.insertAdjacentHTML('beforeend', '<div class="glass"><div class="glass-content"><div class="card-title">🎯 接单大厅</div><div id="hallList" class="list-stack"></div></div></div>');
+    loadHall();
   }
 
   if (isAdmin) {
@@ -262,6 +263,10 @@ async function renderContent() {
         <div class="divider"></div>
         <button class="btn btn-small" onclick="loadReviewOrders()" style="width: 100%; margin-bottom: 10px;">🔍 待审核订单</button>
         <div id="reviewList" class="list-stack" style="margin-bottom: 10px;"></div>
+        
+        <button class="btn btn-small" onclick="loadVoucherCodes()" style="width: 100%; margin-bottom: 10px;">🎟️ 核销码总库</button>
+        <div id="voucherList" class="list-stack" style="margin-bottom: 10px;"></div>
+
         <button class="btn btn-small" onclick="loadAllOrders()" style="width: 100%; margin-bottom: 10px;">📋 所有订单记录</button>
         <div id="allList" class="list-stack"></div>
       </div></div>
@@ -269,8 +274,8 @@ async function renderContent() {
   }
 
   if (role === 'player') {
-    container.insertAdjacentHTML('beforeend', `<div class="glass"><div class="glass-content"><div class="card-title">📦 我的接单</div><div id="myList" class="list-stack"></div></div></div>`);
-    await loadMine();
+    container.insertAdjacentHTML('beforeend', '<div class="glass"><div class="glass-content"><div class="card-title">📦 我的接单</div><div id="myList" class="list-stack"></div></div></div>');
+    loadMine();
   }
 
   if (currentUser.username !== 'admin') {
@@ -279,29 +284,24 @@ async function renderContent() {
         <div class="card-title">🔐 用户中心</div>
         <div class="form-stack">
           <input type="password" id="changePassInput" placeholder="输入新密码（至少3位）">
-          <button class="btn btn-small" onclick="handleChangePass()">修改密码</button>
+          <button class="btn btn-small" onclick="handleChangePassword()">修改密码</button>
         </div>
       </div></div>
     `);
   }
 }
 
-async function loadHall() {
-  const list = $('hallList'); if (!list) return;
+function loadHall() {
+  const list = getEl('hallList'); if (!list) return;
   list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">加载中...</p>';
-  if (!isDbReady) {
-    const rows = offlineOrders.filter(o => o.status === 'pending' || (o.status === 'assigned' && o.player_id === currentUser.id));
-    return renderHallUI(rows, list);
-  }
-  try {
-    const rows = await execSQL('SELECT id, customer_req, amount_client, amount_player, status, player_id FROM orders WHERE status = \'pending\' OR (status = \'assigned\' AND player_id = $1) ORDER BY id DESC', [currentUser.id]);
-    renderHallUI(rows, list);
-  } catch (e) { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;font-size:0.85rem;">获取失败</p>'; }
+  execSQL('SELECT id, customer_req, amount_client, amount_player, status, player_id FROM orders WHERE status = \'pending\' OR (status = \'assigned\' AND player_id = $1) ORDER BY id DESC', [currentUser.id])
+  .then(function(rows) { renderHallUI(rows, list); })
+  .catch(function(e) { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;font-size:0.85rem;">获取失败</p>'; });
 }
 
 function renderHallUI(rows, list) {
   if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;padding:10px;">暂无订单</p>'; return; }
-  list.innerHTML = rows.map(o => {
+  list.innerHTML = rows.map(function(o) {
     const isPending = o.status === 'pending';
     const isMine = o.status === 'assigned' && o.player_id === currentUser.id;
     return `
@@ -311,235 +311,159 @@ function renderHallUI(rows, list) {
         <div class="order-actions">
           <span class="status-text">状态: ${o.status}</span>
           <div style="display:flex; gap:8px;">
-            ${isPending ? `<button class="btn btn-small take-btn" onclick="takeOrder('${o.id}')">接单</button>` : ''}
-            ${isMine ? `<button class="btn btn-small up-btn" onclick="uploadImage('${o.id}')">上传图片</button>` : ''}
-            ${(isPending && currentUser.role !== 'player') || isMine ? `<button class="btn btn-small btn-danger cancel-btn" onclick="cancelOrder('${o.id}', '${isMine}')">取消</button>` : ''}
+            ${isPending ? '<button class="btn btn-small take-btn" onclick="takeOrder(\'' + o.id + '\')">接单</button>' : ''}
+            ${isMine ? '<button class="btn btn-small up-btn" onclick="uploadImage(\'' + o.id + '\')">上传图片</button>' : ''}
+            ${(isPending && currentUser.role !== 'player') || isMine ? '<button class="btn btn-small btn-danger cancel-btn" onclick="cancelOrder(\'' + o.id + '\', \'' + isMine + '\')">取消</button>' : ''}
           </div>
         </div>
       </div>`;
   }).join('');
 }
 
-window.takeOrder = async function(id) {
-  if (!isDbReady) {
-    const order = offlineOrders.find(o => o.id == id);
-    if (order) { order.status = 'assigned'; order.player_id = currentUser.id; showToast('接单成功(离线)'); }
-    return loadHall();
-  }
-  try {
-    const res = await execSQL('UPDATE orders SET status = \'assigned\', player_id = $1 WHERE id = $2 AND status = \'pending\' RETURNING id', [currentUser.id, id]);
-    if (res.length > 0) showToast('接单成功'); else showToast('订单已被抢走');
-    await loadHall(); if (currentUser.role === 'player') await loadMine();
-  } catch(e) { showToast('接单失败'); }
-};
-
-window.uploadImage = function(id) {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*';
-  input.onchange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    try {
-      showToast('图片压缩中...');
-      const base64 = await compressImage(file);
-      if (!isDbReady) {
-        const order = offlineOrders.find(o => o.id == id);
-        if (order) { order.status = 'completed'; order.photo_url = base64; showToast('上传成功(离线)'); }
-        return loadHall();
-      }
-      await execSQL('UPDATE orders SET status = \'completed\', photo_url = $1 WHERE id = $2', [base64, id]);
-      showToast('上传成功，等待审核');
-      await loadHall(); if (currentUser.role === 'player') await loadMine();
-    } catch (err) { showToast(err.message || '上传失败'); }
-  };
-  input.click();
-};
-
-window.cancelOrder = async function(id, isMine) {
-  if (!isDbReady) {
-    const order = offlineOrders.find(o => o.id == id);
-    if (order) {
-      if (isMine === 'true') { order.status = 'pending'; order.player_id = null; } else { order.status = 'cancelled'; }
-      showToast('已取消(离线)');
-    }
-    return loadHall();
-  }
-  try {
-    if (isMine === 'true') {
-      await execSQL('UPDATE orders SET status = \'pending\', player_id = null WHERE id = $1', [id]);
-      showToast('已放弃接单');
-    } else {
-      await execSQL('UPDATE orders SET status = \'cancelled\' WHERE id = $1', [id]);
-      showToast('订单已取消');
-    }
-    await loadHall();
-  } catch(e) { showToast('取消失败'); }
-};
-
-window.handleDispatch = async function() {
-  const req = $('disReq').value.trim(); const ac = parseFloat($('disAc').value); const ap = parseFloat($('disAp').value);
-  if (!req || isNaN(ac) || isNaN(ap)) return showToast('请填写完整');
-  if (!isDbReady) {
-    offlineOrders.unshift({ id: Date.now(), customer_req: req, amount_client: ac, amount_player: ap, status: 'pending', player_id: null });
-    showToast('派单成功(离线)'); $('disReq').value = ''; $('disAc').value = ''; $('disAp').value = ''; return loadHall();
-  }
-  try {
-    await execSQL('INSERT INTO orders (customer_req, amount_client, amount_player, status) VALUES ($1, $2, $3, \'pending\')', [req, ac, ap]);
-    showToast('派单成功'); $('disReq').value = ''; $('disAc').value = ''; $('disAp').value = ''; await loadHall();
-  } catch(e) { showToast('派单失败'); }
-};
-
-window.handleAddUser = async function() {
-  const u = $('newUser').value.trim(); const p = $('newPass').value; const r = $('newRole').value;
-  if (!u || !p) return showToast('账号密码不能为空');
-  if (!isDbReady) return showToast('离线模式无法添加账号');
-  try {
-    const hash = sha256(p);
-    await execSQL('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', [u, hash, r]);
-    showToast('账号添加成功'); $('newUser').value = ''; $('newPass').value = '';
-  } catch (e) { showToast('添加失败，账号可能已存在'); }
-};
-
-window.loadReviewOrders = async function() {
-  const list = $('reviewList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
-  if (!isDbReady) return renderReviewUI(offlineOrders.filter(o => o.status === 'completed'), list);
-  try {
-    const rows = await execSQL('SELECT id, customer_req, photo_url FROM orders WHERE status = \'completed\' ORDER BY id DESC');
-    renderReviewUI(rows, list);
-  } catch(e) { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; }
-};
-
-function renderReviewUI(rows, list) {
-  if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无待审核订单</p>'; return; }
-  list.innerHTML = rows.map(o => `
-    <div class="order-card">
-      <div class="order-req">${escapeHtml(o.customer_req)}</div>
-      ${o.photo_url ? `<img class="order-photo" src="${o.photo_url}">` : '<p style="font-size:0.8rem;color:#888;">无凭证图片</p>'}
-      <div style="display:flex; gap:10px; margin-top:8px;">
-        <button class="btn btn-small btn-primary" onclick="approveOrder('${o.id}')" style="flex:1;">审核通过</button>
-        <button class="btn btn-small btn-danger" onclick="rejectOrder('${o.id}')" style="flex:1;">审核不通过</button>
-      </div>
-    </div>`).join('');
+function takeOrder(id) {
+  execSQL('UPDATE orders SET status = \'assigned\', player_id = $1 WHERE id = $2 AND status = \'pending\'', [currentUser.id, id])
+  .then(function() { showToast('接单成功'); loadHall(); if (currentUser.role === 'player') loadMine(); })
+  .catch(function() { showToast('接单失败'); });
 }
 
-window.approveOrder = async function(id) {
-  if (!isDbReady) {
-    const order = offlineOrders.find(o => o.id == id);
-    if (order) { order.status = 'approved'; order.random_code = generateCode(); showToast('审核通过(离线)'); }
-    loadReviewOrders(); loadHall(); return;
-  }
-  try {
-    const code = generateCode();
-    await execSQL('UPDATE orders SET status = \'approved\', random_code = $1 WHERE id = $2', [code, id]);
-    showToast('审核通过'); await loadReviewOrders(); await loadHall();
-  } catch(e) { showToast('审核失败'); }
-};
+function uploadImage(id) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    showToast('图片压缩中...');
+    compressImage(file).then(function(base64) {
+      return execSQL('UPDATE orders SET status = \'completed\', photo_url = $1 WHERE id = $2', [base64, id]);
+    }).then(function() {
+      showToast('上传成功，等待审核');
+      loadHall(); if (currentUser.role === 'player') loadMine();
+    }).catch(function(err) { showToast(err.message || '上传失败'); });
+  };
+  input.click();
+}
 
-window.rejectOrder = async function(id) {
-  if (!isDbReady) {
-    const order = offlineOrders.find(o => o.id == id);
-    if (order) { order.status = 'assigned'; order.photo_url = null; showToast('已退回重做(离线)'); }
-    loadReviewOrders(); loadHall(); return;
-  }
-  try {
-    await execSQL('UPDATE orders SET status = \'assigned\', photo_url = null WHERE id = $1', [id]);
-    showToast('已退回，打手需重新上传'); await loadReviewOrders(); await loadHall();
-  } catch(e) { showToast('操作失败'); }
-};
+function cancelOrder(id, isMine) {
+  let q = isMine ? 'UPDATE orders SET status = \'pending\', player_id = null WHERE id = $1' : 'UPDATE orders SET status = \'cancelled\' WHERE id = $1';
+  execSQL(q, [id]).then(function() { showToast(isMine ? '已放弃接单' : '订单已取消'); loadHall(); })
+  .catch(function() { showToast('操作失败'); });
+}
 
-window.loadAllOrders = async function() {
-  const list = $('allList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
-  if (!isDbReady) {
-    list.innerHTML = offlineOrders.map(o => `
-      <div class="order-card"><div class="order-req">${escapeHtml(o.customer_req)}</div><div style="font-size:0.8rem; color:#aaa; margin-bottom:8px;">状态: ${o.status}</div>${o.random_code ? `<div class="code-badge">${o.random_code}</div>` : ''}</div>
-    `).join('') || '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无记录</p>';
-    return;
-  }
-  try {
-    const rows = await execSQL('SELECT o.id, o.customer_req, o.status, o.random_code, u.username AS player_name FROM orders o LEFT JOIN users u ON o.player_id = u.id ORDER BY o.id DESC');
-    if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无记录</p>'; return; }
-    list.innerHTML = rows.map(o => `
+function handleDispatch() {
+  const req = getEl('disReq').value.trim(); const ac = parseFloat(getEl('disAc').value); const ap = parseFloat(getEl('disAp').value);
+  if (!req || isNaN(ac) || isNaN(ap)) return showToast('请填写完整');
+  execSQL('INSERT INTO orders (customer_req, amount_client, amount_player, status) VALUES ($1, $2, $3, \'pending\')', [req, ac, ap])
+  .then(function() { showToast('派单成功'); getEl('disReq').value = ''; getEl('disAc').value = ''; getEl('disAp').value = ''; loadHall(); })
+  .catch(function() { showToast('派单失败'); });
+}
+
+function handleAddUser() {
+  const u = getEl('newUser').value.trim(); const p = getEl('newPass').value; const r = getEl('newRole').value;
+  if (!u || !p) return showToast('账号密码不能为空');
+  execSQL('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', [u, p, r])
+  .then(function() { showToast('账号添加成功'); getEl('newUser').value = ''; getEl('newPass').value = ''; })
+  .catch(function() { showToast('添加失败，账号可能已存在'); });
+}
+
+// ----- 核心更新：审核页显示打手名 + 核销码总库 -----
+
+function loadReviewOrders() {
+  const list = getEl('reviewList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
+  // 连表查询，带出打手的名字
+  execSQL('SELECT o.id, o.customer_req, o.photo_url, u.username AS player_name FROM orders o LEFT JOIN users u ON o.player_id = u.id WHERE o.status = \'completed\' ORDER BY o.id DESC')
+  .then(function(rows) {
+    if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无待审核订单</p>'; return; }
+    list.innerHTML = rows.map(function(o) {
+      return `
       <div class="order-card">
-        <div class="order-req">${escapeHtml(o.customer_req)}</div>
-        <div style="font-size:0.8rem; color:#aaa; margin-bottom:8px;">状态: ${o.status} | 打手: ${o.player_name || '无'}</div>
-        ${o.random_code ? `<div class="code-badge">${o.random_code}</div>` : ''}
-      </div>`).join('');
-  } catch(e) { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; }
-};
+        <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#a0c4ff; margin-bottom:8px;">
+          <span>要求: ${escapeHtml(o.customer_req)}</span>
+          <span>打手: ${o.player_name || '未知'}</span>
+        </div>
+        ${o.photo_url ? '<img class="order-photo" src="' + o.photo_url + '">' : '<p style="font-size:0.8rem;color:#888;">无凭证图片</p>'}
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn btn-small btn-primary" onclick="approveOrder('${o.id}')" style="flex:1;">审核通过</button>
+          <button class="btn btn-small btn-danger" onclick="rejectOrder('${o.id}')" style="flex:1;">审核不通过</button>
+        </div>
+      </div>`;
+    }).join('');
+  }).catch(function() { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; });
+}
 
-async function loadMine() {
-  const list = $('myList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
-  if (!isDbReady) return renderMineUI(offlineOrders.filter(o => o.player_id === currentUser.id && ['assigned', 'completed', 'approved'].includes(o.status)), list);
-  try {
-    const rows = await execSQL('SELECT id, customer_req, status, random_code FROM orders WHERE player_id = $1 AND status IN (\'assigned\', \'completed\', \'approved\') ORDER BY id DESC', [currentUser.id]);
-    renderMineUI(rows, list);
-  } catch(e) { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; }
+function approveOrder(id) {
+  const code = generateCode();
+  execSQL('UPDATE orders SET status = \'approved\', random_code = $1 WHERE id = $2', [code, id])
+  .then(function() { showToast('审核通过，核销码: ' + code); loadReviewOrders(); loadHall(); })
+  .catch(function() { showToast('审核失败'); });
+}
+
+function rejectOrder(id) {
+  execSQL('UPDATE orders SET status = \'assigned\', photo_url = null WHERE id = $1', [id])
+  .then(function() { showToast('已退回打手重做'); loadReviewOrders(); loadHall(); })
+  .catch(function() { showToast('操作失败'); });
+}
+
+function loadVoucherCodes() {
+  const list = getEl('voucherList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
+  // 专门查核销码列表
+  execSQL('SELECT o.id, o.customer_req, o.random_code, u.username AS player_name FROM orders o LEFT JOIN users u ON o.player_id = u.id WHERE o.status = \'approved\' ORDER BY o.id DESC')
+  .then(function(rows) {
+    if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无核销码记录</p>'; return; }
+    list.innerHTML = rows.map(function(o) {
+      return `
+      <div class="order-card">
+        <div style="font-size:0.85rem; margin-bottom:8px;">📝 ${escapeHtml(o.customer_req)} <br><span style="color:#a0c4ff;">打手: ${o.player_name || '未知'}</span></div>
+        <div class="code-badge" style="font-size:1.3rem; padding:8px 16px;">${o.random_code}</div>
+      </div>`;
+    }).join('');
+  }).catch(function() { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; });
+}
+
+function loadAllOrders() {
+  const list = getEl('allList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
+  execSQL('SELECT o.id, o.customer_req, o.status, o.random_code, u.username AS player_name FROM orders o LEFT JOIN users u ON o.player_id = u.id ORDER BY o.id DESC')
+  .then(function(rows) {
+    if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无记录</p>'; return; }
+    list.innerHTML = rows.map(function(o) {
+      return `
+      <div class="order-card"><div class="order-req">${escapeHtml(o.customer_req)}</div><div style="font-size:0.8rem; color:#aaa; margin-bottom:8px;">状态: ${o.status} | 打手: ${o.player_name || '无'}</div>${o.random_code ? '<div class="code-badge">' + o.random_code + '</div>' : ''}</div>
+    `;
+    }).join('');
+  }).catch(function() { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; });
+}
+
+function loadMine() {
+  const list = getEl('myList'); list.innerHTML = '<p style="text-align:center;color:#888;">加载中...</p>';
+  execSQL('SELECT id, customer_req, status, random_code FROM orders WHERE player_id = $1 AND status IN (\'assigned\', \'completed\', \'approved\') ORDER BY id DESC', [currentUser.id])
+  .then(function(rows) { renderMineUI(rows, list); })
+  .catch(function() { list.innerHTML = '<p style="text-align:center;color:#ff6b6b;">加载失败</p>'; });
 }
 
 function renderMineUI(rows, list) {
   if (rows.length === 0) { list.innerHTML = '<p style="text-align:center;color:#888;font-size:0.85rem;">暂无记录</p>'; return; }
-  list.innerHTML = rows.map(o => `
+  list.innerHTML = rows.map(function(o) {
+    return `
     <div class="order-card">
       <div class="order-req">${escapeHtml(o.customer_req)}</div>
       <div class="status-text" style="margin-bottom:8px;">状态: ${o.status}</div>
-      ${o.status === 'approved' && o.random_code ? `<div class="code-badge">${o.random_code}</div>` : ''}
-    </div>`).join('');
+      ${o.status === 'approved' && o.random_code ? '<div class="code-badge">' + o.random_code + '</div>' : ''}
+    </div>`;
+  }).join('');
 }
 
-window.handleChangePass = async function() {
-  const p = $('changePassInput').value;
+function handleChangePassword() {
+  const p = getEl('changePassInput').value;
   if (!p || p.length < 3) return showToast('密码至少3位');
-  if (!isDbReady) return showToast('离线模式无法修改密码');
-  try {
-    const hash = sha256(p);
-    await execSQL('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, currentUser.id]);
-    showToast('密码修改成功'); $('changePassInput').value = '';
-  } catch(e) { showToast('修改密码失败'); }
-};
+  execSQL('UPDATE users SET password_hash = $1 WHERE id = $2', [p, currentUser.id])
+  .then(function() {
+    showToast('密码修改成功');
+    getEl('changePassInput').value = '';
+  }).catch(function() {
+    showToast('修改失败，请检查网络');
+  });
+}
 
-window.handleLogin = async function() {
-  const u = $('loginUser').value.trim();
-  const p = $('loginPass').value;
-  const hint = $('loginHint');
-  if (!u || !p) { hint.textContent = '请输入账号和密码'; return; }
-
-  // 超管极速通道，无需等待网络
-  if (u === 'admin' && p === 'admin') {
-    hint.textContent = '';
-    showToast('超管登录成功');
-    currentUser = { id: -1, username: 'admin', role: 'superadmin' };
-    renderUI();
-    initDB();
-    return;
-  }
-
-  hint.textContent = '正在连接数据库中...';
-  const dbOk = await initDB();
-  if (!dbOk) {
-    hint.textContent = '网络异常，只能使用 admin 离线登录';
-    return;
-  }
-
-  try {
-    const hash = sha256(p);
-    const rows = await execSQL('SELECT id, username, role FROM users WHERE username = $1 AND password_hash = $2 LIMIT 1', [u, hash]);
-    if (rows.length === 0) throw new Error('账号或密码错误');
-    currentUser = rows[0];
-    showToast('登录成功'); hint.textContent = ''; renderUI();
-  } catch (e) {
-    hint.textContent = e.message || '登录失败';
-  }
-};
-
-window.handleLogout = function() {
-  currentUser = null;
-  $('mainPage').classList.remove('active');
-  $('loginPage').classList.add('active');
-  $('roleContent').innerHTML = '';
-  $('loginUser').value = ''; $('loginPass').value = ''; $('loginHint').textContent = '';
-  showToast('已退出');
-};
-
-window.addEventListener('DOMContentLoaded', () => { initDB(); });
+// 页面初始化时自动连库
+initDB();
 </script>
 </body>
 </html>
